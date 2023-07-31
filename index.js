@@ -1,53 +1,41 @@
 import express from "express";
-import axios from "axios";
-import * as cheerio from "cheerio";
-import siteConfig from "./lib/siteConfig.js";
-import { URL } from "url";
+import { detailAnime } from "./api/detail/detailAnime.js";
+import { latestEps } from "./api/latestEps/latestEps.js";
+import { watchEps } from "./api/watch/watch.js";
 
-const baseURL = siteConfig.scraptUrl;
 const app = express();
 const port = process.env.PORT || 5000;
 
-const fetchData = async (page) => {
+// GET Watch Anime
+// Example => https://example.com/nonton/{slug}
+app.get("/nonton/:slug", async (req, res) => {
   try {
-    const url = `${baseURL}/pages/episode-terbaru/page/${page || 1}`;
-    let res = await axios.get(url);
-    let $ = await cheerio.load(res.data);
-    let epsTerbaru = [];
-    $("#main > div.post-show > article").each((i, e) => {
-      epsTerbaru.push({
-        title: $(e)
-          .find("div.animepost > div > a > div.data > div.titlex")
-          .text(),
-        image: $(e)
-          .find("div.animepost > div > a > div.content-thumb > img")
-          .attr("src"),
-        eps: $(e)
-          .find("div.animepost > div > a > div.content-thumb > div.EPS > span")
-          .text(),
-        type: $(e)
-          .find("div.animepost > div > a > div.content-thumb > div.type")
-          .text(),
-      });
-    });
-    epsTerbaru.pop();
-
-    return {
-      status: "success",
-      statusCode: 200,
-      page: page || 1,
-      data: epsTerbaru,
-    };
+    const slug = req.params.slug;
+    const watchAnime = await watchEps(slug);
+    res.json(watchAnime);
   } catch (error) {
-    console.log(error);
-    throw error; // Rethrow the error to be caught later
+    res.status(500).json({ error: "An error occurred while fetching data" });
   }
-};
+});
 
+// GET Anime Detail
+// Example => https://example.com/anime/{slug}
+app.get("/anime/:slug", async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const animeDetail = await detailAnime(slug);
+    res.json(animeDetail);
+  } catch (error) {
+    res.status(500).json({ error: "An error occurred while fetching data" });
+  }
+});
+
+// GET Latest Anime
+// Example => https://example.com/pages/episode-terbaru/page/1
 app.get("/pages/episode-terbaru/page/:page", async (req, res) => {
   try {
     const page = req.params.page; // Get the page number from the URL parameter
-    const episodeTerbaru = await fetchData(page);
+    const episodeTerbaru = await latestEps(page);
     res.json(episodeTerbaru);
   } catch (error) {
     res.status(500).json({ error: "An error occurred while fetching data" });
